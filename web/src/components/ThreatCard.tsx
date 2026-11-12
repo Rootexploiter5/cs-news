@@ -120,3 +120,4 @@ export default function ThreatCard({ article, onAskChat }: ThreatCardProps) {
     </article>
   );
 }
+

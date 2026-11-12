@@ -128,3 +128,4 @@ class DatabaseClient:
 
 # Singleton client instance
 db_client = DatabaseClient()
+

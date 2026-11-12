@@ -22,3 +22,4 @@ COPY . .
 
 # Run worker loop
 CMD ["python", "main.py"]
+

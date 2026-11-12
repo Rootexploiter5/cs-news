@@ -35,3 +35,4 @@ export async function query<T extends QueryResultRow = any>(
 }
 
 export default pool;
+

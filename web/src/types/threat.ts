@@ -26,3 +26,4 @@ export interface ChatMessage {
   sources?: ThreatArticle[];
   timestamp: string;
 }
+

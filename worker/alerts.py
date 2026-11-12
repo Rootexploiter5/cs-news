@@ -116,3 +116,4 @@ def dispatch_pipeline_crash_alert(error_details: str):
         requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=5)
     except Exception:
         pass
+

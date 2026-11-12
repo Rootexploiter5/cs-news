@@ -188,3 +188,4 @@ def process_threat_article(title: str, raw_text: str) -> Dict[str, Any]:
         "cve_list": combined_cves,
         "embedding": embedding
     }
+

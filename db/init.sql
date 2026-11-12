@@ -86,3 +86,4 @@ VALUES
     NOW() - INTERVAL '3 days'
 )
 ON CONFLICT (source_url) DO NOTHING;
+

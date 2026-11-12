@@ -283,3 +283,4 @@ export default function ChatBox({ initialPrompt, onClearPrompt }: ChatBoxProps) 
     </div>
   );
 }
+

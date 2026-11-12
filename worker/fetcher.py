@@ -108,3 +108,4 @@ def fetch_all_feeds() -> List[Dict[str, Any]]:
             logger.error(f"Error fetching feed from {source_name}: {e}")
 
     return articles
+

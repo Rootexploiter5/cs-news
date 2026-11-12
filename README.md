@@ -179,3 +179,4 @@ docker compose logs -f db
 
 ## 7. License
 Distributed under the MIT License. Built for cybersecurity defenders and threat intelligence analysts.
+

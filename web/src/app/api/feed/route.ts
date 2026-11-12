@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch filtered threat articles
     const articlesSql = `
-      SELECT id, source_url, title, summary, threat_actor, severity, cve_list, source, published_at, created_at
+      SELECT id, source_url, title, summary, content, threat_actor, severity, cve_list, source, published_at, created_at
       FROM threat_articles
       WHERE ${whereSql}
       ORDER BY published_at DESC

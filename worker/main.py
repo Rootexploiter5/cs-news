@@ -73,6 +73,7 @@ def run_ingestion_cycle():
             "source_url": source_url,
             "title": article["title"],
             "summary": analysis["summary"],
+            "content": article.get("raw_text", analysis["summary"]),
             "threat_actor": analysis["threat_actor"],
             "severity": analysis["severity"],
             "cve_list": analysis["cve_list"],

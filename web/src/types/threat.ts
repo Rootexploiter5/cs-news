@@ -3,6 +3,7 @@ export interface ThreatArticle {
   source_url: string;
   title: string;
   summary: string;
+  content?: string;
   threat_actor: string;
   severity: number;
   cve_list: string[];

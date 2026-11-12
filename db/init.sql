@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS threat_articles (
     source_url TEXT UNIQUE NOT NULL,
     title TEXT NOT NULL,
     summary TEXT,
+    content TEXT,
     threat_actor TEXT DEFAULT 'Unknown',
     severity INTEGER NOT NULL CHECK (severity >= 1 AND severity <= 10),
     cve_list JSONB DEFAULT '[]'::jsonb,

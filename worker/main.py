@@ -94,10 +94,16 @@ def run_ingestion_cycle():
         if inserted:
             new_articles_count += 1
 
-            # 4. Critical Severity Alert Routing (Discord & Telegram Webhooks)
-            d_alert = dispatch_discord_threat_alert(record)
-            t_alert = dispatch_telegram_threat_alert(record)
+    # 4. Critical Severity Alert Routing (Dispatches pending critical alerts to Discord/Telegram)
+    alert_threshold = int(os.getenv("SEVERITY_ALERT_THRESHOLD", "8"))
+    pending_alerts = db_client.get_pending_alerts(alert_threshold)
+    if pending_alerts:
+        logger.info(f"Dispatching {len(pending_alerts)} pending critical threat alerts (Severity >= {alert_threshold})...")
+        for alert_item in pending_alerts:
+            d_alert = dispatch_discord_threat_alert(alert_item)
+            t_alert = dispatch_telegram_threat_alert(alert_item)
             if d_alert or t_alert:
+                db_client.mark_alert_sent(alert_item["id"])
                 alerts_triggered_count += 1
 
     elapsed = round(time.time() - start_time, 2)

@@ -5,6 +5,7 @@ import StatsOverview from "@/components/StatsOverview";
 import FilterBar from "@/components/FilterBar";
 import ThreatCard from "@/components/ThreatCard";
 import ChatBox from "@/components/ChatBox";
+import ThreatDetailModal from "@/components/ThreatDetailModal";
 import { ThreatArticle, ThreatStats } from "@/types/threat";
 import { Shield, AlertCircle } from "lucide-react";
 
@@ -21,6 +22,7 @@ export default function DashboardPage() {
   const [severityFilter, setSeverityFilter] = useState(0);
   const [sourceFilter, setSourceFilter] = useState("all");
   const [chatPrompt, setChatPrompt] = useState<string>("");
+  const [selectedArticle, setSelectedArticle] = useState<ThreatArticle | null>(null);
 
   const fetchThreatData = useCallback(async () => {
     setIsLoading(true);
@@ -112,6 +114,7 @@ export default function DashboardPage() {
                   key={article.id}
                   article={article}
                   onAskChat={handleCardAskChat}
+                  onOpenModal={(art) => setSelectedArticle(art)}
                 />
               ))}
             </div>
@@ -128,6 +131,13 @@ export default function DashboardPage() {
           </div>
         </aside>
       </div>
+
+      {/* In-UI Full Threat Intelligence Dossier Modal */}
+      <ThreatDetailModal
+        article={selectedArticle}
+        onClose={() => setSelectedArticle(null)}
+        onAskChat={handleCardAskChat}
+      />
     </div>
   );
 }

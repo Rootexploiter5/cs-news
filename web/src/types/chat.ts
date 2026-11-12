@@ -7,3 +7,4 @@ export interface ChatSession {
   createdAt: string;
   updatedAt: string;
 }
+

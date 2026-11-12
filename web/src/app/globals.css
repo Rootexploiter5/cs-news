@@ -3,31 +3,76 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 248, 250, 252;
-  --background-start-rgb: 9, 13, 22;
-  --background-end-rgb: 15, 23, 42;
+  --foreground-rgb: 250, 250, 250;
+  --background-rgb: 0, 0, 0;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: #090d16;
+  background: #000000;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   min-height: 100vh;
+  overflow: hidden;
 }
 
-/* Custom scrollbars */
+/* Gradient Flow Text Animation */
+.gradient-flow-text {
+  background: linear-gradient(135deg, #00f0ff 0%, #7000ff 35%, #ff0077 70%, #00f0ff 100%);
+  background-size: 300% 300%;
+  animation: gradientFlow 5s ease infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gradient-flow-accent {
+  background: linear-gradient(90deg, #00f0ff, #8b5cf6, #ec4899, #00f0ff);
+  background-size: 300% 300%;
+  animation: gradientFlow 4s ease infinite;
+}
+
+/* Flowing Gradient Border Animation Container */
+.gradient-border-animated {
+  position: relative;
+  background: #080808;
+}
+
+.gradient-border-animated::before {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #00f0ff, #7000ff, #ff0077, #00f0ff);
+  background-size: 300% 300%;
+  animation: gradientFlow 6s linear infinite;
+  z-index: -1;
+  opacity: 0.85;
+}
+
+/* Ambient Radial Flowing Orbs */
+.ambient-glow-cyan {
+  background: radial-gradient(circle, rgba(0, 240, 255, 0.12) 0%, rgba(0, 0, 0, 0) 70%);
+}
+
+.ambient-glow-purple {
+  background: radial-gradient(circle, rgba(112, 0, 255, 0.14) 0%, rgba(0, 0, 0, 0) 70%);
+}
+
+.ambient-glow-crimson {
+  background: radial-gradient(circle, rgba(255, 0, 119, 0.12) 0%, rgba(0, 0, 0, 0) 70%);
+}
+
+/* Custom Ultra-Dark Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #090d16;
+  background: #000000;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 3px;
+  background: #1c1c1c;
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #2a2a2a;
 }
-

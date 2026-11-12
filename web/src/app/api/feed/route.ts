@@ -81,59 +81,20 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error("Failed to query threat feed from database:", error.message);
 
-    // Graceful fallback for initial setup / unseeded state
-    const fallbackArticles: ThreatArticle[] = [
+    return NextResponse.json(
       {
-        id: "1",
-        source_url: "https://www.bleepingcomputer.com/news/security/lockbit-surge",
-        title: "LockBit Ransomware Surge Targets Critical Infrastructure Globally",
-        summary: "A surge in LockBit ransomware intrusions has impacted manufacturing and healthcare sectors. The group exploits exposed VPN gateways and unpatched remote management endpoints.",
-        threat_actor: "LockBit 3.0",
-        severity: 9,
-        cve_list: ["CVE-2024-21887", "CVE-2024-3400"],
-        source: "BleepingComputer",
-        published_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
+        success: false,
+        error: error.message || "Failed to query live threat feed from database.",
+        articles: [],
+        stats: {
+          totalThreats: 0,
+          criticalCount: 0,
+          activeCves: 0,
+          threatActorsCount: 0,
+        },
       },
-      {
-        id: "2",
-        source_url: "https://thehackernews.com/cisco-vpn-zero-day",
-        title: "Critical Zero-Day in Cisco ASA and FTD Firewalls Actively Exploited",
-        summary: "Cisco released emergency patches addressing an RCE zero-day flaw in ASA and FTD software. Threat actors are bypassing authentication via crafted HTTP requests.",
-        threat_actor: "Volt Typhoon",
-        severity: 10,
-        cve_list: ["CVE-2026-1029", "CVE-2026-1030"],
-        source: "The Hacker News",
-        published_at: new Date(Date.now() - 3600000).toISOString(),
-        created_at: new Date(Date.now() - 3600000).toISOString(),
-      },
-      {
-        id: "3",
-        source_url: "https://www.bleepingcomputer.com/news/security/darkgate-wave",
-        title: "Massive Phishing Wave Deploys DarkGate Malware via PDFs",
-        summary: "Security researchers observed a high-volume phishing campaign distributing DarkGate loader disguised as financial invoices to steal browser credentials.",
-        threat_actor: "DarkGate Operator",
-        severity: 7,
-        cve_list: [],
-        source: "BleepingComputer",
-        published_at: new Date(Date.now() - 7200000).toISOString(),
-        created_at: new Date(Date.now() - 7200000).toISOString(),
-      }
-    ];
-
-    const fallbackStats: ThreatStats = {
-      totalThreats: fallbackArticles.length,
-      criticalCount: fallbackArticles.filter((a) => a.severity >= 8).length,
-      activeCves: 4,
-      threatActorsCount: 3,
-    };
-
-    return NextResponse.json({
-      success: true,
-      articles: fallbackArticles,
-      stats: fallbackStats,
-      fallback: true,
-    });
+      { status: 500 }
+    );
   }
 }
 

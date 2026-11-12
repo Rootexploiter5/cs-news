@@ -11,6 +11,8 @@ import requests
 logger = logging.getLogger("sentinel.alerts")
 
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "").strip()
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
 SEVERITY_ALERT_THRESHOLD = int(os.getenv("SEVERITY_ALERT_THRESHOLD", "8"))
 
 
@@ -95,6 +97,57 @@ def dispatch_discord_threat_alert(article: Dict[str, Any]) -> bool:
             return False
     except Exception as e:
         logger.error(f"Failed to deliver Discord threat alert: {e}")
+        return False
+
+
+def dispatch_telegram_threat_alert(article: Dict[str, Any]) -> bool:
+    """
+    Formats an HTML threat bulletin and sends via Telegram Bot API
+    if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are configured.
+    """
+    severity = article.get("severity", 1)
+    if severity < SEVERITY_ALERT_THRESHOLD:
+        return False
+
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return False
+
+    title = article.get("title", "Critical Threat Advisory")
+    source_url = article.get("source_url", "")
+    summary = article.get("summary", "No summary provided.")
+    actor = article.get("threat_actor", "Unknown")
+    cves: List[str] = article.get("cve_list", [])
+    source = article.get("source", "Sentinel AI Feed")
+
+    cve_str = ", ".join(cves) if cves else "None"
+
+    text = (
+        f"🚨 <b>[SEV {severity}/10] THREAT ALERT</b>\n\n"
+        f"<b>Title:</b> <a href=\"{source_url}\">{title}</a>\n"
+        f"<b>Actor:</b> <code>{actor}</code>\n"
+        f"<b>CVEs:</b> <code>{cve_str}</code>\n"
+        f"<b>Source:</b> {source}\n\n"
+        f"<b>Executive Summary:</b>\n{summary}\n"
+    )
+
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": False
+    }
+
+    try:
+        res = requests.post(url, json=payload, timeout=10)
+        if res.status_code == 200:
+            logger.info(f"Successfully posted alert to Telegram: {title[:50]}")
+            return True
+        else:
+            logger.warning(f"Telegram API responded with {res.status_code}: {res.text}")
+            return False
+    except Exception as e:
+        logger.error(f"Failed to deliver Telegram alert: {e}")
         return False
 
 

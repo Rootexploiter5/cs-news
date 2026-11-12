@@ -13,7 +13,7 @@ from datetime import datetime
 from fetcher import fetch_all_feeds
 from ai_pipeline import process_threat_article
 from db_client import db_client
-from alerts import dispatch_discord_threat_alert, dispatch_pipeline_crash_alert
+from alerts import dispatch_discord_threat_alert, dispatch_telegram_threat_alert, dispatch_pipeline_crash_alert
 
 # Setup structured logging
 logging.basicConfig(
@@ -86,8 +86,10 @@ def run_ingestion_cycle():
         if inserted:
             new_articles_count += 1
 
-            # 4. Critical Severity Alert Routing (Discord Webhook)
-            if dispatch_discord_threat_alert(record):
+            # 4. Critical Severity Alert Routing (Discord & Telegram Webhooks)
+            d_alert = dispatch_discord_threat_alert(record)
+            t_alert = dispatch_telegram_threat_alert(record)
+            if d_alert or t_alert:
                 alerts_triggered_count += 1
 
     elapsed = round(time.time() - start_time, 2)

@@ -146,6 +146,52 @@ class DatabaseClient:
             logger.error(f"Error purging expired articles: {e}")
             return 0
 
+    def get_pending_alerts(self, severity_threshold: int = 8) -> List[Dict[str, Any]]:
+        """
+        Retrieves all high-severity articles whose alert has not been dispatched yet.
+        """
+        conn = self.get_connection()
+        query = """
+        SELECT id, source_url, title, summary, threat_actor, severity, cve_list, source
+        FROM threat_articles
+        WHERE severity >= %s AND (alert_sent IS FALSE OR alert_sent IS NULL)
+        ORDER BY severity DESC, published_at DESC;
+        """
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(query, (severity_threshold,))
+                rows = cursor.fetchall()
+                results = []
+                for row in rows:
+                    results.append({
+                        "id": str(row[0]),
+                        "source_url": row[1],
+                        "title": row[2],
+                        "summary": row[3],
+                        "threat_actor": row[4],
+                        "severity": row[5],
+                        "cve_list": row[6] if isinstance(row[6], list) else [],
+                        "source": row[7]
+                    })
+                return results
+        except Exception as e:
+            logger.error(f"Error fetching pending alerts: {e}")
+            return []
+
+    def mark_alert_sent(self, article_id: str) -> bool:
+        """
+        Marks an article's alert_sent flag to TRUE in PostgreSQL.
+        """
+        conn = self.get_connection()
+        query = "UPDATE threat_articles SET alert_sent = TRUE WHERE id = %s;"
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(query, (article_id,))
+                return True
+        except Exception as e:
+            logger.error(f"Error marking alert sent for article {article_id}: {e}")
+            return False
+
 
 # Singleton client instance
 db_client = DatabaseClient()

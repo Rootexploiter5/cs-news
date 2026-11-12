@@ -32,12 +32,15 @@ def dispatch_discord_threat_alert(article: Dict[str, Any]) -> bool:
     Evaluates threat severity. If severity >= SEVERITY_ALERT_THRESHOLD,
     formats a rich Discord embed and sends an HTTP POST request to the webhook.
     """
+    threshold = int(os.getenv("SEVERITY_ALERT_THRESHOLD", str(SEVERITY_ALERT_THRESHOLD)))
+    webhook_url = os.getenv("DISCORD_WEBHOOK_URL", DISCORD_WEBHOOK_URL).strip()
+
     severity = article.get("severity", 1)
-    if severity < SEVERITY_ALERT_THRESHOLD:
+    if severity < threshold:
         return False
 
-    if not DISCORD_WEBHOOK_URL:
-        logger.info(f"[Alert Skipped] Severity {severity} >= {SEVERITY_ALERT_THRESHOLD}, but DISCORD_WEBHOOK_URL is not set.")
+    if not webhook_url:
+        logger.warning(f"[Alert Skipped] Severity {severity} >= {threshold}, but DISCORD_WEBHOOK_URL is not set.")
         return False
 
     title = article.get("title", "Critical Threat Advisory")
@@ -88,7 +91,7 @@ def dispatch_discord_threat_alert(article: Dict[str, Any]) -> bool:
     }
 
     try:
-        response = requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10)
+        response = requests.post(webhook_url, json=payload, timeout=10)
         if response.status_code in [200, 204]:
             logger.info(f"Successfully posted high-severity alert ({severity}/10) to Discord: {title[:50]}")
             return True

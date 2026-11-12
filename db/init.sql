@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS threat_articles (
     cve_list JSONB DEFAULT '[]'::jsonb,
     embedding VECTOR(768),
     source TEXT DEFAULT 'Unknown',
+    alert_sent BOOLEAN DEFAULT FALSE,
     published_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -26,6 +27,7 @@ CREATE TABLE IF NOT EXISTS threat_articles (
 CREATE INDEX IF NOT EXISTS idx_threat_articles_source_url ON threat_articles (source_url);
 CREATE INDEX IF NOT EXISTS idx_threat_articles_published ON threat_articles (published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_threat_articles_severity ON threat_articles (severity DESC);
+CREATE INDEX IF NOT EXISTS idx_threat_articles_alert_sent ON threat_articles (alert_sent, severity);
 
 -- HNSW Vector index for fast, high-recall cosine similarity queries
 CREATE INDEX IF NOT EXISTS idx_threat_articles_embedding ON threat_articles 

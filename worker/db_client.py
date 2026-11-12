@@ -128,6 +128,24 @@ class DatabaseClient:
             logger.error(f"Failed to insert threat article: {e}")
             return False
 
+    def purge_expired_articles(self, hours: int = 24) -> int:
+        """
+        Deletes threat intelligence articles older than specified hours (default: 24h),
+        guaranteeing the database only maintains current day-by-day news.
+        """
+        conn = self.get_connection()
+        query = "DELETE FROM threat_articles WHERE published_at < NOW() - (%s || ' hours')::interval;"
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(query, (hours,))
+                deleted_count = cursor.rowcount
+                if deleted_count > 0:
+                    logger.info(f"Purged {deleted_count} expired threat articles older than {hours} hours.")
+                return deleted_count
+        except Exception as e:
+            logger.error(f"Error purging expired articles: {e}")
+            return 0
+
 
 # Singleton client instance
 db_client = DatabaseClient()

@@ -11,14 +11,14 @@ interface StatsOverviewProps {
 export default function StatsOverview({ stats }: StatsOverviewProps) {
   const cards = [
     {
-      label: "Total Monitored Threats",
+      label: "Today's Threat Reports (24h)",
       value: stats.totalThreats,
       icon: ShieldCheck,
       color: "text-blue-400",
       bg: "bg-blue-500/10 border-blue-500/20",
     },
     {
-      label: "Critical Alerts (Sev >= 8)",
+      label: "Critical Threats Today",
       value: stats.criticalCount,
       icon: AlertTriangle,
       color: "text-red-400",
@@ -26,14 +26,14 @@ export default function StatsOverview({ stats }: StatsOverviewProps) {
       highlight: true,
     },
     {
-      label: "Active Tracked CVEs",
+      label: "Tracked CVEs Today",
       value: stats.activeCves,
       icon: Bug,
       color: "text-amber-400",
       bg: "bg-amber-500/10 border-amber-500/20",
     },
     {
-      label: "Identified Threat Actors",
+      label: "Active Threat Actors (24h)",
       value: stats.threatActorsCount,
       icon: Users,
       color: "text-emerald-400",

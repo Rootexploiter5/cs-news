@@ -24,6 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger("sentinel.worker")
 
 POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "900"))  # Default: 15 minutes
+RETENTION_HOURS = int(os.getenv("RETENTION_HOURS", "24"))  # Rolling 24-hour day-by-day retention
 RUNNING = True
 
 
@@ -39,9 +40,15 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 def run_ingestion_cycle():
     """Executes a single end-to-end ingestion, analysis, storage, and alert cycle."""
-    logger.info("Starting Threat Intelligence Ingestion Cycle...")
+    logger.info("Starting Daily Threat Intelligence Ingestion Cycle...")
     start_time = time.time()
 
+    # 1. Automatically purge articles older than 24 hours (day-by-day retention)
+    purged_count = db_client.purge_expired_articles(RETENTION_HOURS)
+    if purged_count > 0:
+        logger.info(f"Daily maintenance: purged {purged_count} stale articles older than {RETENTION_HOURS}h.")
+
+    # 2. Fetch only fresh current day articles
     articles = fetch_all_feeds()
     logger.info(f"Fetched {len(articles)} total articles across feeds.")
 

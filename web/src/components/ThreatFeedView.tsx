@@ -47,11 +47,11 @@ export default function ThreatFeedView({
           <div className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-cyan-400" />
             <h1 className="text-lg font-bold tracking-tight text-white">
-              Autonomous Cybersecurity Feed
+              Today's Threat Intelligence (Rolling 24h)
             </h1>
           </div>
           <span className="text-xs text-slate-400">
-            Displaying {articles.length} ingested report{articles.length === 1 ? "" : "s"}
+            {articles.length} active report{articles.length === 1 ? "" : "s"} today (auto-purged daily)
           </span>
         </div>
 

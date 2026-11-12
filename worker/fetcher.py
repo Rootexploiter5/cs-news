@@ -4,13 +4,16 @@ Parses predetermined cybersecurity feeds and cleans article text.
 """
 
 import re
+import os
 import html
 import logging
 from typing import List, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 import feedparser
 
 logger = logging.getLogger("sentinel.fetcher")
+
+RETENTION_HOURS = int(os.getenv("RETENTION_HOURS", "24"))
 
 FEED_SOURCES = [
     {
@@ -93,6 +96,11 @@ def fetch_all_feeds() -> List[Dict[str, Any]]:
 
                 clean_text = clean_html(raw_content)
                 published_at = parse_published_date(entry)
+
+                # Strictly filter: only accept current day's news (within RETENTION_HOURS)
+                cutoff = datetime.utcnow() - timedelta(hours=RETENTION_HOURS)
+                if published_at < cutoff:
+                    continue
 
                 articles.append({
                     "title": title,

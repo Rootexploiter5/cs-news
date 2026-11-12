@@ -1,15 +1,19 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import StatsOverview from "@/components/StatsOverview";
-import FilterBar from "@/components/FilterBar";
-import ThreatCard from "@/components/ThreatCard";
-import ChatBox from "@/components/ChatBox";
+import Sidebar from "@/components/Sidebar";
+import Navbar from "@/components/Navbar";
+import ChatGPTView from "@/components/ChatGPTView";
+import ThreatFeedView from "@/components/ThreatFeedView";
 import ThreatDetailModal from "@/components/ThreatDetailModal";
-import { ThreatArticle, ThreatStats } from "@/types/threat";
-import { Shield, AlertCircle } from "lucide-react";
+import { ThreatArticle, ThreatStats, ChatMessage } from "@/types/threat";
+import { ChatSession } from "@/types/chat";
 
-export default function DashboardPage() {
+export default function App() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [activeView, setActiveView] = useState<"chat" | "feed">("chat");
+
+  // Threat Feed State
   const [articles, setArticles] = useState<ThreatArticle[]>([]);
   const [stats, setStats] = useState<ThreatStats>({
     totalThreats: 0,
@@ -17,15 +21,55 @@ export default function DashboardPage() {
     activeCves: 0,
     threatActorsCount: 0,
   });
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingFeed, setIsLoadingFeed] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [severityFilter, setSeverityFilter] = useState(0);
   const [sourceFilter, setSourceFilter] = useState("all");
-  const [chatPrompt, setChatPrompt] = useState<string>("");
+
+  // In-UI Dossier Modal State
   const [selectedArticle, setSelectedArticle] = useState<ThreatArticle | null>(null);
 
+  // ChatGPT Sessions State
+  const [sessions, setSessions] = useState<ChatSession[]>([
+    {
+      id: "session-default",
+      title: "Threat Intelligence Briefing",
+      messages: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  ]);
+  const [activeSessionId, setActiveSessionId] = useState<string>("session-default");
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
+  // Load chat sessions from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("sentinel_chat_sessions");
+      if (saved) {
+        const parsed: ChatSession[] = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSessions(parsed);
+          setActiveSessionId(parsed[0].id);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to restore chat sessions from localStorage", e);
+    }
+  }, []);
+
+  // Save chat sessions to localStorage on change
+  useEffect(() => {
+    try {
+      localStorage.setItem("sentinel_chat_sessions", JSON.stringify(sessions));
+    } catch (e) {
+      console.warn("Failed to persist chat sessions", e);
+    }
+  }, [sessions]);
+
+  // Fetch Threat Feed Data
   const fetchThreatData = useCallback(async () => {
-    setIsLoading(true);
+    setIsLoadingFeed(true);
     try {
       const params = new URLSearchParams();
       if (searchQuery) params.set("search", searchQuery);
@@ -44,101 +88,267 @@ export default function DashboardPage() {
     } catch (err) {
       console.error("Failed to load threat intelligence feed:", err);
     } finally {
-      setIsLoading(false);
+      setIsLoadingFeed(false);
     }
   }, [searchQuery, severityFilter, sourceFilter]);
 
-  // Initial load and filter change trigger
   useEffect(() => {
     const handler = setTimeout(() => {
       fetchThreatData();
     }, 250);
-
     return () => clearTimeout(handler);
   }, [fetchThreatData]);
 
-  const handleCardAskChat = (article: ThreatArticle) => {
-    const prompt = `Analyze this incident: "${article.title}" (Severity: ${article.severity}/10, Actor: ${article.threat_actor}). What are the key indicators of compromise, vulnerabilities, and recommended mitigations?`;
-    setChatPrompt(prompt);
+  // Get current active session
+  const activeSession = sessions.find((s) => s.id === activeSessionId) || sessions[0];
+
+  // Send message in current active session
+  const handleSendMessage = async (userText: string) => {
+    const trimmed = userText.trim();
+    if (!trimmed || isAiLoading) return;
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: "user",
+      content: trimmed,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    // Update session title on first message
+    const isFirstMessage = !activeSession.messages || activeSession.messages.length === 0;
+    const newTitle = isFirstMessage
+      ? trimmed.length > 36
+        ? trimmed.substring(0, 33) + "..."
+        : trimmed
+      : activeSession.title;
+
+    // Append user message immediately
+    setSessions((prev) =>
+      prev.map((s) => {
+        if (s.id === activeSessionId) {
+          return {
+            ...s,
+            title: newTitle,
+            messages: [...(s.messages || []), userMessage],
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return s;
+      })
+    );
+
+    setIsAiLoading(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: trimmed }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.reply) {
+        const assistantMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: data.reply,
+          sources: data.sources || [],
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        };
+
+        setSessions((prev) =>
+          prev.map((s) => {
+            if (s.id === activeSessionId) {
+              return {
+                ...s,
+                messages: [...(s.messages || []), assistantMessage],
+                updatedAt: new Date().toISOString(),
+              };
+            }
+            return s;
+          })
+        );
+      } else {
+        throw new Error(data.error || "RAG engine failed to generate answer.");
+      }
+    } catch (err: any) {
+      const errorMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: `⚠️ **Error querying Sentinel AI:** ${err.message || "Failed to reach AI pipeline."}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+
+      setSessions((prev) =>
+        prev.map((s) => {
+          if (s.id === activeSessionId) {
+            return {
+              ...s,
+              messages: [...(s.messages || []), errorMessage],
+              updatedAt: new Date().toISOString(),
+            };
+          }
+          return s;
+        })
+      );
+    } finally {
+      setIsAiLoading(false);
+    }
   };
 
+  // Create New Chat Session (ChatGPT Style)
+  const handleNewChat = () => {
+    const newSessionId = `session-${Date.now()}`;
+    const newSession: ChatSession = {
+      id: newSessionId,
+      title: "New Investigation",
+      messages: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    setSessions((prev) => [newSession, ...prev]);
+    setActiveSessionId(newSessionId);
+    setActiveView("chat");
+  };
+
+  // Delete Chat Session
+  const handleDeleteSession = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSessions((prev) => {
+      const filtered = prev.filter((s) => s.id !== id);
+      if (filtered.length === 0) {
+        const fallback: ChatSession = {
+          id: `session-${Date.now()}`,
+          title: "New Investigation",
+          messages: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setActiveSessionId(fallback.id);
+        return [fallback];
+      }
+      if (activeSessionId === id) {
+        setActiveSessionId(filtered[0].id);
+      }
+      return filtered;
+    });
+  };
+
+  // Ask Chat from a ThreatCard action
+  const handleAskChatFromCard = (article: ThreatArticle) => {
+    const prompt = `Analyze this security incident: "${article.title}" (Severity: ${article.severity}/10, Actor: ${article.threat_actor}). What are the key indicators of compromise, affected systems, and recommended triage mitigations?`;
+    handleNewChat();
+    setTimeout(() => {
+      handleSendMessage(prompt);
+    }, 100);
+  };
+
+  // Quick navigation filter selection
+  const handleSelectViewWithFilter = (view: "chat" | "feed", filter?: string) => {
+    setActiveView(view);
+    if (view === "feed") {
+      if (filter === "critical") {
+        setSeverityFilter(8);
+        setSearchQuery("");
+      } else if (filter === "cve") {
+        setSeverityFilter(0);
+        setSearchQuery("CVE");
+      } else {
+        setSeverityFilter(0);
+        setSearchQuery("");
+      }
+    }
+  };
+
+  // Hotkey for New Chat (Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        handleNewChat();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
-      {/* Top Threat Metrics */}
-      <StatsOverview stats={stats} />
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-950 font-sans">
+      {/* ChatGPT Collapsible Sidebar */}
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onToggle={() => setIsSidebarOpen(false)}
+        activeView={activeView}
+        onSelectView={handleSelectViewWithFilter}
+        sessions={sessions}
+        activeSessionId={activeSessionId}
+        onSelectSession={(id) => setActiveSessionId(id)}
+        onNewChat={handleNewChat}
+        onDeleteSession={handleDeleteSession}
+        threatCount={stats.totalThreats}
+        criticalCount={stats.criticalCount}
+        cveCount={stats.activeCves}
+      />
 
-      {/* Main Split Layout: Threat Feed & Live RAG Assistant */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Left Column: Intelligence Feed (7 Cols on desktop) */}
-        <section className="space-y-4 lg:col-span-7">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-cyan-400" />
-              <h1 className="text-lg font-bold tracking-tight text-white">Chronological Threat Feed</h1>
-            </div>
-            <span className="text-xs text-slate-400">
-              Showing {articles.length} report{articles.length === 1 ? "" : "s"}
-            </span>
-          </div>
+      {/* Main Workspace Area (Offsets when sidebar is open) */}
+      <div
+        className={`flex flex-1 flex-col h-full overflow-hidden transition-all duration-200 ${
+          isSidebarOpen ? "md:pl-72" : "pl-0"
+        }`}
+      >
+        {/* Top Navbar */}
+        <Navbar
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen(true)}
+          activeView={activeView}
+          onSelectView={(v) => setActiveView(v)}
+          onNewChat={handleNewChat}
+          threatCount={stats.totalThreats}
+        />
 
-          {/* Filtering Controls */}
-          <FilterBar
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            severityFilter={severityFilter}
-            setSeverityFilter={setSeverityFilter}
-            sourceFilter={sourceFilter}
-            setSourceFilter={setSourceFilter}
-            onRefresh={fetchThreatData}
-            isLoading={isLoading}
-          />
-
-          {/* Articles Feed */}
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-slate-800 bg-slate-900/30 p-12 text-slate-400">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
-              <p className="mt-3 text-xs">Querying threat intelligence database...</p>
-            </div>
-          ) : articles.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-800 bg-slate-900/20 p-12 text-center text-slate-400">
-              <AlertCircle className="h-8 w-8 text-amber-500/60 mb-2" />
-              <h3 className="text-sm font-semibold text-slate-300">No matching threat reports</h3>
-              <p className="text-xs text-slate-500 mt-1 max-w-sm">
-                No articles match your current search or severity filter criteria. Try clearing filters or wait for the next ingestion poll.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {articles.map((article) => (
-                <ThreatCard
-                  key={article.id}
-                  article={article}
-                  onAskChat={handleCardAskChat}
-                  onOpenModal={(art) => setSelectedArticle(art)}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Right Column: RAG Chat Assistant (5 Cols, Sticky) */}
-        <aside className="lg:col-span-5">
-          <div className="sticky top-20 h-[calc(100vh-6.5rem)] min-h-[500px]">
-            <ChatBox
-              initialPrompt={chatPrompt}
-              onClearPrompt={() => setChatPrompt("")}
+        {/* View Switcher: ChatGPT AI Analyst vs Live Threat Feed */}
+        <div className="relative flex-1 flex flex-col h-[calc(100vh-3.5rem)] overflow-hidden">
+          {activeView === "chat" ? (
+            <ChatGPTView
+              messages={activeSession.messages || []}
+              onSendMessage={handleSendMessage}
+              isLoading={isAiLoading}
+              onOpenModal={(art) => setSelectedArticle(art)}
+              onRegenerateLast={() => {
+                const userMsgs = (activeSession.messages || []).filter((m) => m.role === "user");
+                if (userMsgs.length > 0) {
+                  const lastUser = userMsgs[userMsgs.length - 1];
+                  handleSendMessage(lastUser.content);
+                }
+              }}
             />
-          </div>
-        </aside>
+          ) : (
+            <ThreatFeedView
+              articles={articles}
+              stats={stats}
+              isLoading={isLoadingFeed}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              severityFilter={severityFilter}
+              setSeverityFilter={setSeverityFilter}
+              sourceFilter={sourceFilter}
+              setSourceFilter={setSourceFilter}
+              onRefresh={fetchThreatData}
+              onAskChat={handleAskChatFromCard}
+              onOpenModal={(art) => setSelectedArticle(art)}
+            />
+          )}
+        </div>
       </div>
 
-      {/* In-UI Full Threat Intelligence Dossier Modal */}
+      {/* Full Threat Intelligence Dossier Modal (In-UI, Zero External Navigation) */}
       <ThreatDetailModal
         article={selectedArticle}
         onClose={() => setSelectedArticle(null)}
-        onAskChat={handleCardAskChat}
+        onAskChat={handleAskChatFromCard}
       />
     </div>
   );
 }
-
